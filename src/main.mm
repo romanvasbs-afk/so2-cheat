@@ -62,7 +62,7 @@ static void* g_image;
 static bool  g_ready;
 
 #define PTR(m) (*(void**)((uintptr_t)(m)))
-#define RESOLVE(var, sym) if (!(var = (void*)dlsym(RTLD_DEFAULT, sym))) return false;
+#define RESOLVE(var, sym) do { var = (__typeof__(var))dlsym(RTLD_DEFAULT, sym); if (!var) return false; } while (0)
 
 static bool api_ready() {
     return i_domain_get && i_class_from_name && i_class_methods && i_type_of;
@@ -261,12 +261,9 @@ static void find_skin_methods() {
         if (!klass) continue;
         void *it = NULL, *m;
         while ((m = i_class_methods(klass, &it))) {
-            const char *name = NULL;
-            // il2cpp_method_get_name is stable; resolve once
-            static void *(*mname)(void*) = NULL;
-            if (!mname) mname = (void*)dlsym(RTLD_DEFAULT, "il2cpp_method_get_name");
-            if (mname) name = ((const char*(*)(void*))mname)(m);
-            if (!name) continue;
+            static t_cstr mname = NULL;
+            if (!mname) mname = (t_cstr)dlsym(RTLD_DEFAULT, "il2cpp_method_get_name");
+            const char *name = mname ? mname(m) : NULL;
 
             bool isSet = false, isGet = false;
             for (int i = 0; kSkinSetters[i]; i++) if (!strcmp(name, kSkinSetters[i])) isSet = true;
