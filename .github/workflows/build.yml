@@ -11,22 +11,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Dobby
-        run: |
-          set -e
-          git clone --depth 1 https://github.com/jmpews/Dobby
-          cd Dobby
-          mkdir b && cd b
-           cmake .. -DCMAKE_SYSTEM_NAME=iOS \
-                   -DCMAKE_SYSTEM_PROCESSOR=arm64 \
-                   -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                   -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
-                   -DCMAKE_BUILD_TYPE=Release \
-                   -DDOBBY_GENERATE_SHARED=OFF
-          make -j4
-          mkdir -p "$GITHUB_WORKSPACE/vendor/dobby/include"
-          cp libdobby.a "$GITHUB_WORKSPACE/vendor/dobby/"
-          lipo -info "$GITHUB_WORKSPACE/vendor/dobby/libdobby.a"
-          cp ../include/*.h "$GITHUB_WORKSPACE/vendor/dobby/include/"
+        run: bash build_dobby.sh
 
       - name: Theos
         run: |
@@ -34,10 +19,7 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
 
       - name: Build dylib
-        run: |
-          set -e
-          make
-          find .theos -name 's2chams.dylib' -print
+        run: make
 
       - name: Upload
         uses: actions/upload-artifact@v4
