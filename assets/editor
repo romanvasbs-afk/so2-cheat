@@ -1,0 +1,22 @@
+using UnityEditor;
+using UnityEngine;
+using System.IO;
+
+public class BuildChamsBundle {
+    [MenuItem("Venice/Build Chams Bundle")]
+    static void Build() {
+        var path = "Assets/chams.shader";
+        if (AssetDatabase.LoadAssetAtPath<Shader>(path) == null) {
+            Debug.LogError("missing " + path); return;
+        }
+        var build = new AssetBundleBuild {
+            assetBundleName = "chams.bundle",
+            assetNames = new[] { path }
+        };
+        Directory.CreateDirectory("Bundle");
+        BuildPipeline.BuildAssetBundles(
+            "Bundle", new[] { build },
+            BuildAssetBundleOptions.UncompressedAssetBundle, BuildTarget.iOS);
+        Debug.Log("built Bundle/chams.bundle");
+    }
+}
