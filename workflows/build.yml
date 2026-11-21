@@ -1,0 +1,46 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  dylib:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Dobby
+        run: |
+          set -e
+          git clone --depth 1 https://github.com/jmpews/Dobby
+          cd Dobby
+          mkdir b && cd b
+          cmake .. -DCMAKE_SYSTEM_NAME=iOS \
+                   -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                   -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+                   -DCMAKE_BUILD_TYPE=Release \
+                   -DDOBBY_GENERATE_SHARED=OFF
+          make -j4
+          mkdir -p "$GITHUB_WORKSPACE/vendor/dobby/include"
+          cp libdobby.a "$GITHUB_WORKSPACE/vendor/dobby/"
+          cp ../include/*.h "$GITHUB_WORKSPACE/vendor/dobby/include/"
+
+      - name: Theos
+        run: |
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: Build dylib
+        run: |
+          set -e
+          make
+          find .theos -name 's2chams.dylib' -print
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: s2chams
+          path: .theos/**/s2chams.dylib
+          if-no-files-found: error
+          retention-days: 7
