@@ -2,6 +2,10 @@
 #import <Foundation/Foundation.h>
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <dispatch/dispatch.h>
 #include <stdarg.h>
 #include "dobby.h"
 #include "config.h"
@@ -40,7 +44,7 @@ typedef int    (*t_type)(void*);
 static t_void   i_domain_get;
 static t_attach i_thread_attach;
 static t_asm    i_get_assemblies;
-static t_asm_img i_assembly_image;
+static t_asm_img   i_assembly_image;
 static t_cstr   i_image_name;
 static t_cfn    i_class_from_name;
 static t_mfn    i_method_from_name;
