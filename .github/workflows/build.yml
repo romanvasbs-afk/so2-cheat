@@ -22,7 +22,10 @@ jobs:
                    -DCMAKE_BUILD_TYPE=Release \
                    -DDOBBY_GENERATE_SHARED=OFF
           make -j4
-          mkdir -p "$GITHUB_WORKSPACE/vendor/dobby/include"
+          mkdir -p mkdir -p "$GITHUB_WORKSPACE/vendor/dobby/include"
+          cp libdobby.a "$GITHUB_WORKSPACE/vendor/dobby/"
+          lipo -info "$GITHUB_WORKSPACE/vendor/dobby/libdobby.a"
+          cp ../include/*.h "$GITHUB_WORKSPACE/vendor/dobby/include/"
           cp libdobby.a "$GITHUB_WORKSPACE/vendor/dobby/"
           cp ../include/*.h "$GITHUB_WORKSPACE/vendor/dobby/include/"
 
