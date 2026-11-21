@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <dispatch/dispatch.h>
 #include <stdarg.h>
 #include "dobby.h"
@@ -44,7 +45,7 @@ typedef int    (*t_type)(void*);
 static t_void   i_domain_get;
 static t_attach i_thread_attach;
 static t_asm    i_get_assemblies;
-static t_asm_img   i_assembly_image;
+static t_asm_img i_assembly_image;
 static t_cstr   i_image_name;
 static t_cfn    i_class_from_name;
 static t_mfn    i_method_from_name;
@@ -256,14 +257,17 @@ static int hook_getSkin(void *self, void *m) {
 static void find_skin_methods() {
     size_t count = i_class_count(g_image);
     s2log(@"scanning %zu classes", count);
+    static t_cstr mname = NULL;
+    if (!mname) mname = (t_cstr)dlsym(RTLD_DEFAULT, "il2cpp_method_get_name");
+    if (!mname) { s2log(@"no il2cpp_method_get_name"); return; }
+
     for (size_t c = 0; c < count; c++) {
         void *klass = i_class_at(g_image, c);
         if (!klass) continue;
         void *it = NULL, *m;
         while ((m = i_class_methods(klass, &it))) {
-            static t_cstr mname = NULL;
-            if (!mname) mname = (t_cstr)dlsym(RTLD_DEFAULT, "il2cpp_method_get_name");
-            const char *name = mname ? mname(m) : NULL;
+            const char *name = mname(m);
+            if (!name) continue;
 
             bool isSet = false, isGet = false;
             for (int i = 0; kSkinSetters[i]; i++) if (!strcmp(name, kSkinSetters[i])) isSet = true;
@@ -277,7 +281,7 @@ static void find_skin_methods() {
             if (isSet && pc == 1) {
                 void *pt = i_param(m, 0);
                 if (pt && i_type_of(pt) == 0x08) { // IL2CPP_TYPE_I4
-                    s2log(@"SET candidate %s.%s @%p", i_image_name(g_image), name, mp);
+                    s2log(@"SET candidate %s @%p", name, mp);
                     if (!g_setHook) {
                         g_setHook = mp;
                         DobbyHook(mp, (void*)hook_setSkin, (void**)&orig_setSkin);
@@ -319,74 +323,4 @@ static UIWindow *g_win;
     _fab.layer.cornerRadius = 27;
     _fab.backgroundColor = [UIColor colorWithRed:.05 green:.05 blue:.07 alpha:.9];
     [_fab setTitle:@"S2" forState:UIControlStateNormal];
-    [_fab addTarget:self action:@selector(toggle) forControlEvents:UIControlEventTouchUpInside];
-    [g_win addSubview:_fab];
-
-    _panel = [[UIView alloc] initWithFrame:CGRectMake(18, 120, 214, 230)];
-    _panel.backgroundColor = [UIColor colorWithRed:.05 green:.05 blue:.07 alpha:.95];
-    _panel.layer.cornerRadius = 12;
-    _panel.hidden = YES;
-    [g_win addSubview:_panel];
-
-    NSArray *titles = @[@"Chams", @"Self chams", @"Skinchanger"];
-    CGFloat y = 12;
-    for (int i = 0; i < titles.count; i++) {
-        UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(12, y, 110, 31)];
-        l.text = titles[i]; l.textColor = UIColor.whiteColor; l.font = [UIFont systemFontOfSize:13];
-        UISwitch *s = [UISwitch new];
-        s.frame = CGRectMake(132, y, 51, 31); s.tag = i;
-        [s addTarget:self action:@selector(sw:) forControlEvents:UIControlEventValueChanged];
-        [_panel addSubview:l]; [_panel addSubview:s];
-        y += 42;
-    }
-    _tf = [[UITextField alloc] initWithFrame:CGRectMake(12, y + 4, 190, 34)];
-    _tf.placeholder = @"skin id"; _tf.keyboardType = UIKeyboardTypeNumberPad;
-    _tf.textColor = UIColor.whiteColor;
-    _tf.backgroundColor = [UIColor colorWithWhite:1 alpha:.1];
-    _tf.layer.cornerRadius = 6; _tf.textAlignment = NSTextAlignmentCenter;
-    [_tf addTarget:self action:@selector(edit:) forControlEvents:UIControlEventEditingChanged];
-    [_panel addSubview:_tf];
-}
-- (void)toggle { _panel.hidden = !_panel.hidden; }
-- (void)sw:(UISwitch*)s {
-    if (s.tag == 0) { g_chams = s.isOn; if (!s.isOn) restore_chams(); }
-    else if (s.tag == 1) g_self = s.isOn;
-    else g_skin = s.isOn;
-    s2log(@"chams=%d self=%d skin=%d", g_chams, g_self, g_skin);
-}
-- (void)edit:(UITextField*)t { g_skinId = t.text.intValue; }
-@end
-
-static S2Menu *g_menu;
-
-// ---------------- boot ----------------
-__attribute__((constructor))
-static void boot() {
-    dispatch_async(dispatch_get_global_queue(0, 0), ^{
-        s2log(@"--- loaded ---");
-        for (int i = 0; i < 600; i++) {
-            if (!api_ready() && !resolve_api()) { usleep(100000); continue; }
-            g_image = resolve_image();
-            if (g_image) break;
-            usleep(100000);
-        }
-        if (!g_image) { s2log(@"Assembly-CSharp not found"); return; }
-        s2log(@"image %p", g_image);
-        g_ready = true;
-
-        g_mat = new_cham_material();
-        s2log(@"material %p", g_mat);
-
-        find_skin_methods();
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            g_menu = [S2Menu new];
-            [g_menu build];
-        });
-
-        while (true) {
-            if (g_chams && g_ready) apply_chams();
-            usleep(400000);
-        }
-    });
-}
+    [_fab addTarget:self action:@selector(toggle)
