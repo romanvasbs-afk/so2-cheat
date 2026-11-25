@@ -24,10 +24,16 @@ jobs:
       - name: Build dylib
         run: make
 
+      - name: Collect
+        run: |
+          mkdir -p out
+          find .theos -name s2chams.dylib -exec cp {} out/ \;
+          lipo -info out/s2chams.dylib
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: s2chams
-          path: .theos/**/s2chams.dylib
+          path: out/s2chams.dylib
           if-no-files-found: error
           retention-days: 7
